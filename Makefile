@@ -21,7 +21,7 @@ PROG=wpi-tour
 .PHONY: all clean tags split dist dist-linux dist-win32 dist-data \
 		dist-linux-nodata dist-win32-nodata
 
-all: ${PROG} ${PROG}.exe
+all: ${PROG}
 
 $(PROG).exe : ${OBJS:.o=-win.o}
 	$(WINCC) ${CFLAGS} $(WINFLAGS) $^ -o $@ ${WINLIBS}
