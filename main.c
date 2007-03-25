@@ -4,6 +4,8 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <string.h>
+#include <physfs.h>
+#include <assert.h>
 
 #include "xmlnode.h"
 #include "main.h"
@@ -133,14 +135,34 @@ void view(gchar *key, Slide *s, gpointer null)
     }
 }
 
+gboolean exists(const gchar *fn)
+{
+    return PHYSFS_exists(fn) ? 1 : 0;
+}
+
+void try_insert_helper(Slide *slide, char** child, char *childname, xmlnode *node)
+{
+    gchar *fn;
+    gchar *d = cdata(node, childname);
+    if (d) {
+        *child = d;
+        fn   = g_strconcat(SLIDEDIR, G_DIR_SEPARATOR_S, slide->id, ".jpg", NULL);
+        if (!exists(fn))
+            warn("%s does not exist\n", fn);
+        slide->fn = fn;
+    }
+}
+
+#define try_insert(slide, node, child) try_insert_helper(slide, &(slide->child), #child, node)
+
 GHashTable* make_weak()
 {
     gchar *data;
-    gint len;
+    gsize len;
     GError *err = NULL;
     xmlnode *top,*s;
     GHashTable *slides;
-    gchar *fn,*path;
+    Slide *tmp;
 
     if (!g_file_get_contents("data.xml", &data, &len, &err))
     {
@@ -166,23 +188,12 @@ GHashTable* make_weak()
         }
         else
         {
-            Slide* tmp = g_new0(Slide, 1);
-            xmlnode *next = xmlnode_get_child(s, "next");
+            xmlnode *next;
+            tmp  = g_new0(Slide, 1);
+            next = xmlnode_get_child(s, "next");
             tmp->id = g_strdup(id);
             if (next)
             {
-                #define try_insert(slide, node, child) do {\
-                    gchar *d = cdata(node, #child);\
-                    if (d) {\
-                        slide->child = d;\
-                        fn = g_strconcat(tmp->id, ".jpg", NULL);\
-                        path = g_build_filename(SLIDEDIR, fn, NULL);\
-                        if (!g_file_test(path, G_FILE_TEST_EXISTS))\
-                            warn("%s does not exist at %s\n", fn, path);\
-                        g_free(fn);\
-                        slide->fn = path;\
-                    }\
-                } while (0)
                 try_insert(tmp, next, left);
                 try_insert(tmp, next, right);
                 try_insert(tmp, next, forward);
@@ -197,44 +208,53 @@ GHashTable* make_weak()
         s = xmlnode_get_next_twin(s);
     }
     xmlnode_free(top);
-    Slide* tmp = g_new0(Slide, 1);
+    tmp = g_new0(Slide, 1);
     tmp->id = g_strdup("map");
-    fn = g_strconcat(tmp->id, ".jpg", NULL);
-    path = g_build_filename(SLIDEDIR, fn, NULL);
-    if (!g_file_test(path, G_FILE_TEST_EXISTS))
-        warn("%s does not exist at %s\n", fn, path);
-    g_free(fn);
-    tmp->fn = path;
+    tmp->fn = g_strconcat(SLIDEDIR, G_DIR_SEPARATOR_S, tmp->id, ".jpg", NULL);
+    if (!exists(tmp->fn))
+        warn("%s does not exist\n", tmp->fn);
     g_hash_table_insert(slides, g_strdup(tmp->id), tmp);
 
     return slides;
+}
+
+SDL_Surface *load(const char *path)
+{
+    SDL_RWops *rw;
+    SDL_Surface *img;
+    gchar *buf;
+    gint cnt;
+    PHYSFS_file *f = PHYSFS_openRead(path);
+
+    if (!f)
+        die("Poop\n");
+
+    buf = g_malloc(PHYSFS_fileLength(f));
+    cnt = PHYSFS_read(f, buf, 1, PHYSFS_fileLength(f));
+    assert(PHYSFS_fileLength(f) == cnt);
+    PHYSFS_close(f);
+    rw  = SDL_RWFromConstMem(buf,cnt);
+    img = IMG_Load_RW(rw, 1);
+    g_free(buf);
+    assert(img);
+    return img;
 }
 
 void draw_slide(SDL_Surface *surface, gchar *fn)
 {
     static SDL_Surface *image = NULL;
     static gchar *last = NULL;
+    SDL_Rect rcDest = { OFFX, OFFY, 0, 0 };
 
     if (last != fn)
     {
         if (image != NULL)
             SDL_FreeSurface(image);
-        if (!(image = IMG_Load(fn)))
-            die("IMG_Load: %s\n", IMG_GetError());
+        image = load(fn);
         last = fn;
     }
 
-    SDL_Rect rcDest = { OFFX, OFFY, 0, 0 };
     SDL_BlitSurface(image, NULL, surface, &rcDest);
-}
-
-
-SDL_Surface* load(const gchar *path)
-{
-    SDL_Surface *image;
-    if (!(image = IMG_Load(path)))
-        die("IMG_Load: %s\n", IMG_GetError());
-    return image;
 }
 
 void init_cursors()
@@ -382,7 +402,7 @@ int main(int argc, char **argv)
     SDL_Surface *screen;
     SDL_Event event;
     Slide *cur, *last = NULL;
-    GHashTable *h = make_weak();
+    GHashTable *h;
     gboolean update = 1, draw_mouse = 1;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -391,9 +411,14 @@ int main(int argc, char **argv)
     if (!(screen = SDL_SetVideoMode(WWID, WHGT, 0, SDL_SWSURFACE)))
         die("Could not get a surface: %s", SDL_GetError());
 
+    PHYSFS_init(argv[0]);
+    if (!PHYSFS_addToSearchPath("gfx.zip", 1))
+        die("Error: %s\n", PHYSFS_getLastError());
+
     SDL_ShowCursor(SDL_DISABLE);
     init_cursors();
 
+    h = make_weak();
     cur = g_hash_table_lookup(h, "S001");
     view(NULL, cur, NULL);
     while(1)
@@ -489,6 +514,7 @@ int main(int argc, char **argv)
     }
 
 bail:
+    PHYSFS_deinit();
     SDL_Quit();
     g_hash_table_destroy(h);
     return 0;
