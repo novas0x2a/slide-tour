@@ -279,6 +279,7 @@ void init_cursors()
 void update_cursor(SDL_Surface *s, Slide *current)
 {
     SDL_Surface *image;
+    SDL_Rect rcDest;
     Region next;
     int x,y;
 
@@ -321,8 +322,8 @@ void update_cursor(SDL_Surface *s, Slide *current)
         default:
             break;
     }
+    rcDest = (struct SDL_Rect) {x, y, 0, 0};
 
-    SDL_Rect rcDest = {x, y, 0, 0};
     SDL_BlitSurface(image, NULL, s, &rcDest);
 }
 
