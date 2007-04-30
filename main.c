@@ -64,7 +64,7 @@ SDL_Surface *arrows[C_COUNT];
 gchar *arrowfiles[C_COUNT] = {NULL, "arrow-left.png", "arrow-left180.png", "arrow-right.png",
                               "arrow-right180.png", "arrow-up.png", "arrow-down.png", "arrow-fwd.png"};
 
-SDL_Rect arrowrect[C_COUNT] = {{0,0,0,0}, 
+SDL_Rect arrowrect[C_COUNT] = {{0,0,0,0},
                             {(OFFX-ARRX)/2, (WHGT-ARRY)/2, 0, 0}, {(OFFX-ARRX)/2, (WHGT-ARRY)/2, 0, 0},
                             {WWID-((OFFX+ARRX)/2), (WHGT-ARRY)/2, 0, 0}, {WWID-((OFFX+ARRX)/2), (WHGT-ARRY)/2, 0, 0},
                             {WWID/2, EDGE/2, 0, 0}, {WWID/2, SHGT+(EDGE/2), 0, 0},
