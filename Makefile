@@ -6,4 +6,4 @@ STD     := y
 DEBUG   := y
 
 wpi-tour_OBJS := main.o xmlnode.o
-include ../../../../../../build/c.mk
+include c.mk
