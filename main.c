@@ -107,7 +107,7 @@ void slide_free(Slide *s)
     g_free(s);
 }
 
-inline gchar *cdata(xmlnode *p, gchar *cname)
+gchar *cdata(xmlnode *p, gchar *cname)
 {
     xmlnode *x = xmlnode_get_child(p, cname);
     if (x)
