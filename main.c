@@ -23,14 +23,14 @@
 static gboolean debug = FALSE;
 
 SDL_Surface *curs[C_COUNT];
-gchar *curfiles[C_COUNT] = {"arrow.png", "left.png", "left180.png", "right.png",
-                            "right180.png", "up.png", "down.png", "fwd.png"};
+static const gchar *curfiles[C_COUNT] = {"arrow.png", "left.png", "left180.png", "right.png",
+                                         "right180.png", "up.png", "down.png", "fwd.png"};
 
 SDL_Surface *arrows[C_COUNT];
-gchar *arrowfiles[C_COUNT] = {NULL, "arrow-left.png", "arrow-left180.png", "arrow-right.png",
-                              "arrow-right180.png", "arrow-up.png", "arrow-down.png", "arrow-fwd.png"};
+static const gchar *arrowfiles[C_COUNT] = {NULL, "arrow-left.png", "arrow-left180.png", "arrow-right.png",
+                                           "arrow-right180.png", "arrow-up.png", "arrow-down.png", "arrow-fwd.png"};
 
-SDL_Rect arrowrect[C_COUNT] = {{0,0,0,0},
+static SDL_Rect arrowrect[C_COUNT] = {{0,0,0,0},
                             {(OFFX-ARRX)/2, (WHGT-ARRY)/2, 0, 0}, {(OFFX-ARRX)/2, (WHGT-ARRY)/2, 0, 0},
                             {WWID-((OFFX+ARRX)/2), (WHGT-ARRY)/2, 0, 0}, {WWID-((OFFX+ARRX)/2), (WHGT-ARRY)/2, 0, 0},
                             {WWID/2, EDGE/2, 0, 0}, {WWID/2, SHGT+(EDGE/2), 0, 0},
