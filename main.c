@@ -98,6 +98,7 @@ void view(gchar *key, Slide *s, gpointer null)
         printif(up);
         printif(down);
         printf("\n");
+        #undef printif
     }
 }
 
@@ -118,8 +119,6 @@ void try_insert_helper(Slide *slide, char** child, char *childname, xmlnode *nod
         slide->fn = fn;
     }
 }
-
-#define try_insert(slide, node, child) try_insert_helper(slide, &(slide->child), #child, node)
 
 GHashTable* make_weak()
 {
@@ -155,6 +154,8 @@ GHashTable* make_weak()
             tmp->id = g_strdup(id);
             if (next)
             {
+                #define try_insert(slide, node, child) try_insert_helper(slide, &(slide->child), #child, node)
+
                 try_insert(tmp, next, left);
                 try_insert(tmp, next, right);
                 try_insert(tmp, next, forward);
@@ -162,6 +163,9 @@ GHashTable* make_weak()
                 try_insert(tmp, next, right180);
                 try_insert(tmp, next, up);
                 try_insert(tmp, next, down);
+
+                #undef try_insert
+
             }
             g_hash_table_insert(slides, id, tmp);
         }
