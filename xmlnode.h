@@ -205,6 +205,4 @@ xmlnode *xmlnode_copy(xmlnode *src);
  */
 void xmlnode_free(xmlnode *node);
 
-/* $Revision: 1.2 $ */
-
 #endif /* _GAIM_XMLNODE_H_ */

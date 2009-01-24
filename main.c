@@ -22,40 +22,6 @@
 
 static gboolean debug = FALSE;
 
-typedef struct {
-    gchar* id;
-    gchar* left;
-    gchar* right;
-    gchar* forward;
-    gchar* left180;
-    gchar* right180;
-    gchar* up;
-    gchar* down;
-    gchar* fn;
-} Slide;
-
-typedef enum {
-    R_MIDDLE,
-    R_LEFT,
-    R_RIGHT,
-    R_TOP,
-    R_BOTTOM,
-    R_OFF,
-    R_INVALID
-} Region;
-
-typedef enum {
-    C_ARROW,
-    C_LEFT,
-    C_LEFTSPIN,
-    C_RIGHT,
-    C_RIGHTSPIN,
-    C_UP,
-    C_DOWN,
-    C_FWD,
-    C_COUNT
-} Cursor;
-
 SDL_Surface *curs[C_COUNT];
 gchar *curfiles[C_COUNT] = {"arrow.png", "left.png", "left180.png", "right.png",
                             "right180.png", "up.png", "down.png", "fwd.png"};
@@ -158,18 +124,13 @@ void try_insert_helper(Slide *slide, char** child, char *childname, xmlnode *nod
 GHashTable* make_weak()
 {
     gchar *data;
-    gsize len;
-    GError *err = NULL;
+    PHYSFS_sint64 len;
     xmlnode *top,*s;
     GHashTable *slides;
     Slide *tmp;
 
-    if (!g_file_get_contents("data.xml", &data, &len, &err))
-    {
-        warn("Couldn't open %s: %s\n", "data.xml", err->message);
-        g_error_free(err);
-        die("Failed.");
-    }
+    if (!(data = load_file("data.xml", &len)))
+        exit(1);
 
     top = xmlnode_from_str(data, len);
     g_free(data);
@@ -218,25 +179,51 @@ GHashTable* make_weak()
     return slides;
 }
 
-SDL_Surface *load(const char *path)
+char *load_file(const char *path, PHYSFS_sint64 *size)
 {
-    SDL_RWops *rw;
-    SDL_Surface *img;
-    gchar *buf;
-    gint cnt;
+    gchar *buf = NULL;
+    PHYSFS_sint64 cnt = 0;
     PHYSFS_file *f = PHYSFS_openRead(path);
 
-    if (!f)
-        die("Poop\n");
+    if (!f) {
+        warn("Error loading %s: %s\n", path, PHYSFS_getLastError());
+        goto load_file_out;
+    }
 
     buf = g_malloc(PHYSFS_fileLength(f));
     cnt = PHYSFS_read(f, buf, 1, PHYSFS_fileLength(f));
-    assert(PHYSFS_fileLength(f) == cnt);
+
+    if (PHYSFS_fileLength(f) != cnt) {
+        warn("Incomplete read of %s: %s\n", path, PHYSFS_getLastError());
+        g_free(buf);
+        buf = NULL;
+        cnt = 0;
+    }
+
     PHYSFS_close(f);
-    rw  = SDL_RWFromConstMem(buf,cnt);
-    img = IMG_Load_RW(rw, 1);
+
+load_file_out:
+    if (size)
+        *size = cnt;
+    return buf;
+}
+
+SDL_Surface *load_image(const char *path)
+{
+    SDL_Surface *img;
+    PHYSFS_sint64 size;
+
+    gchar *buf = load_file(path, &size);
+    if (!buf)
+        return NULL;
+
+    if (!(img = IMG_Load_RW(SDL_RWFromConstMem(buf,size), 1))) {
+        warn("Error loading image [%s]: %s\n", path, IMG_GetError());
+        img = NULL;
+    }
+
     g_free(buf);
-    assert(img);
+
     return img;
 }
 
@@ -250,30 +237,37 @@ void draw_slide(SDL_Surface *surface, gchar *fn)
     {
         if (image != NULL)
             SDL_FreeSurface(image);
-        image = load(fn);
+        image = load_image(fn);
         last = fn;
     }
 
     SDL_BlitSurface(image, NULL, surface, &rcDest);
 }
 
-void init_cursors()
+int init_cursors()
 {
     gchar *fn;
     int i;
+    int error = 0;
+
     for (i = 0; i < C_COUNT; ++i)
     {
         fn = g_build_filename(CURSORDIR, curfiles[i], NULL);
-        curs[i] = load(fn);
+        curs[i] = load_image(fn);
         g_free(fn);
+        if (!curs[i])
+            error++;
 
         if (arrowfiles[i])
         {
             fn = g_build_filename(CURSORDIR, arrowfiles[i], NULL);
-            arrows[i] = load(fn);
+            arrows[i] = load_image(fn);
             g_free(fn);
+            if (!arrows[i])
+                error++;
         }
     }
+    return error == 0;
 }
 
 void update_cursor(SDL_Surface *s, Slide *current)
@@ -403,8 +397,9 @@ int main(int argc, char **argv)
     SDL_Surface *screen;
     SDL_Event event;
     Slide *cur, *last = NULL;
-    GHashTable *h;
+    GHashTable *h = NULL;
     gboolean update = 1, draw_mouse = 1;
+    char **files;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         die("Unable to init SDL: %s", SDL_GetError());
@@ -413,11 +408,23 @@ int main(int argc, char **argv)
         die("Could not get a surface: %s", SDL_GetError());
 
     PHYSFS_init(argv[0]);
-    if (!PHYSFS_addToSearchPath("gfx.zip", 1))
-        die("Error: %s\n", PHYSFS_getLastError());
+
+    PHYSFS_addToSearchPath(".", 0);
+    PHYSFS_addToSearchPath("data", 0);
+
+    files = PHYSFS_enumerateFiles("");
+    for (char **i = files; *i != NULL; ++i)
+        if (g_str_has_suffix(*i, ".zip"))
+        {
+            printf("Loading %s\n", *i);
+            PHYSFS_addToSearchPath(*i, 1);
+        }
+
+    PHYSFS_freeList(files);
 
     SDL_ShowCursor(SDL_DISABLE);
-    init_cursors();
+    if (!init_cursors())
+        goto bail;
 
     h = make_weak();
     cur = g_hash_table_lookup(h, "S001");
@@ -517,8 +524,7 @@ int main(int argc, char **argv)
 bail:
     PHYSFS_deinit();
     SDL_Quit();
-    g_hash_table_destroy(h);
+    if (h)
+        g_hash_table_destroy(h);
     return 0;
 }
-
-/* $Revision: 1.11 $ */

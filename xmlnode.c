@@ -492,5 +492,3 @@ xmlnode_get_next_twin(xmlnode *node)
 
     return NULL;
 }
-
-/* $Revision: 1.2 $ */
