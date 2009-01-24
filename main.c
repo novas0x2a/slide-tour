@@ -404,6 +404,8 @@ int main(int argc, char **argv)
     GHashTable *h = NULL;
     gboolean update = 1, draw_mouse = 1;
     char **files;
+    gchar *install_dir;
+    gchar *data_dir;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         die("Unable to init SDL: %s", SDL_GetError());
@@ -413,8 +415,12 @@ int main(int argc, char **argv)
 
     PHYSFS_init(argv[0]);
 
-    PHYSFS_addToSearchPath(".", 0);
-    PHYSFS_addToSearchPath("data", 0);
+    install_dir = g_path_get_dirname(argv[0]);
+    PHYSFS_addToSearchPath(install_dir, 0);
+    data_dir = g_build_filename(install_dir, "data", NULL);
+    PHYSFS_addToSearchPath(data_dir, 0);
+    g_free(data_dir);
+    g_free(install_dir);
 
     files = PHYSFS_enumerateFiles("");
     for (char **i = files; *i != NULL; ++i)
