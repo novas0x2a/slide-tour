@@ -1,0 +1,2 @@
+- This code is rather ugly
+- use a LRU cache rather than loading all images on startup

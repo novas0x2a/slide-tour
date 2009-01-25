@@ -1,0 +1,11 @@
+This is an engine designed for tour programs. It's somewhat comparable to
+Myst's engine, except that this doesn't support interaction with the
+environment.
+
+This was originally written for my CS senior thesis at WPI. I've put a little
+love into it since then, but not a lot. I like what it does, though, so I'll
+probably work on it some more.
+
+If you want to see it in action, you need some data. The data I used for my
+thesis is here: http://slide-tour.s3.amazonaws.com/wpi-tour-1.0.zip. Put it in
+the same directory as the binary (you don't need to unzip it)
